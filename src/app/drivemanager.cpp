@@ -298,39 +298,9 @@ void Drive::setDelayedWrite(const bool &o)
         emit delayedWriteChanged();
         
         if (m_delayedWrite) {
-            // Starting a write operation
-            if (m_image) {
-                QString reason = tr("Writing %1 to flash drive").arg(m_image->fullName());
-                SuspendInhibitor::inhibit(reason);
-            }
             write(m_image);
         } else {
-            // Write operation finished
             cancel();
-            
-            // Check if we should release suspend inhibition
-            // Only release if no downloads are active and no other drives are writing
-            bool hasOngoingOperations = false;
-            
-            // Check downloads
-            DriveManager *driveManager = DriveManager::instance();
-            if (driveManager) {
-                // Note: We would need access to ReleaseManager to check download status
-                // For simplicity, we'll let the ReleaseVariant::setStatus handle this
-            }
-            
-            // Check other drives
-            for (int i = 0; i < driveManager->length(); i++) {
-                Drive *drive = driveManager->get(i);
-                if (drive && drive != this && drive->delayedWrite()) {
-                    hasOngoingOperations = true;
-                    break;
-                }
-            }
-            
-            if (!hasOngoingOperations) {
-                SuspendInhibitor::release();
-            }
         }
     }
 }

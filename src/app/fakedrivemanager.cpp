@@ -69,6 +69,7 @@ bool FakeDrive::write(ReleaseVariant *data)
 
 void FakeDrive::cancel()
 {
+    Drive::cancel(); // Call base class to unregister from SuspendManager
 }
 
 void FakeDrive::restore()
