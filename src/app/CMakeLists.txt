@@ -12,6 +12,8 @@ set(MEDIAWRITER_SRCS
     notifications.cpp
     portalfiledialog.cpp
     releasemanager.cpp
+    suspendmanager.cpp
+    suspendinhibitor.cpp
     utilities.cpp
 )
 

@@ -27,6 +27,8 @@
 #include <QtQml>
 
 #include <QJsonDocument>
+#include "suspendinhibitor.h"
+#include "suspendmanager.h"
 
 using namespace Qt::Literals::StringLiterals;
 
@@ -1077,7 +1079,42 @@ bool ReleaseVariant::erase()
 void ReleaseVariant::setStatus(Status s)
 {
     if (m_status != s) {
+        Status oldStatus = m_status;
         m_status = s;
+        
+        // Handle suspend inhibition based on status changes
+        bool shouldInhibit = (s == DOWNLOADING || s == DOWNLOAD_VERIFYING || s == WRITING || s == WRITE_VERIFYING);
+        bool wasInhibiting = (oldStatus == DOWNLOADING || oldStatus == DOWNLOAD_VERIFYING || oldStatus == WRITING || oldStatus == WRITE_VERIFYING);
+        
+        if (shouldInhibit && !wasInhibiting) {
+            QString reason;
+            if (s == DOWNLOADING || s == DOWNLOAD_VERIFYING) {
+                reason = tr("Downloading %1").arg(fullName());
+            } else {
+                reason = tr("Writing %1 to flash drive").arg(fullName());
+            }
+            SuspendManager::instance()->registerOperation(QString("download_%1").arg(reinterpret_cast<quintptr>(this)), reason);
+        } else if (!shouldInhibit && wasInhibiting) {
+            // Check if there are any other ongoing operations before releasing
+            // This is important because multiple operations might be running
+            bool hasOngoingOperations = false;
+            
+            // Check if any drive is currently writing
+            DriveManager *driveManager = DriveManager::instance();
+            for (int i = 0; i < driveManager->length(); i++) {
+                Drive *drive = driveManager->get(i);
+                if (drive && drive->delayedWrite()) {
+                    hasOngoingOperations = true;
+                    break;
+                }
+            }
+            
+            // If no ongoing operations, release inhibition
+            if (!hasOngoingOperations) {
+                SuspendManager::instance()->unregisterOperation(QString("download_%1").arg(reinterpret_cast<quintptr>(this)));
+            }
+        }
+        
         emit statusChanged();
     }
 }
